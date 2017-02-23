@@ -1,3 +1,6 @@
+import os.path as path
+
+
 class Reader:
     path = ""
 
@@ -6,6 +9,11 @@ class Reader:
 
     def read_input(self):
         matrix = []
+
+        # check if provided path points to a valid file
+        if not path.isfile(self.path):
+            raise EnvironmentError("File in provided path does not exit.")
+
         input_file = open(self.path, "r")
         lines = input_file.read().splitlines()
         matrix_size = lines.pop(0)
@@ -26,7 +34,7 @@ class Reader:
             # for each row we place 0 if there is no queen and n (n>0) for a queens position
             # note that now the first position is not '0' but '1'
             # then n is inverted to indicate an immovable queen
-            matrix.append(0 if index == -1 else index + 1)  # re-invert back to negative case
+            matrix.append(0 if index == -1 else -index - 1)
 
         input_file.close()
         return matrix
@@ -46,7 +54,7 @@ class Writer:
         for value in matrix:
             output_file.write("\n")
             for row in range(len(matrix)):
-                output_file.write("\tQ" if value == row + 1 else "\t-")
+                output_file.write("\tQ" if abs(value) == row + 1 else "\t-")
 
         output_file.write("\n")
         output_file.close()
@@ -62,6 +70,9 @@ class Solver:
     writer = None
     solution_number = 1
 
+    # a magic variable to determine recursion direction
+    begin = True
+
     def __init__(self, path, matrix):
         self.path = path
         self.matrix = matrix
@@ -73,36 +84,48 @@ class Solver:
         self._place_queen(1)
 
     def _place_queen(self, row):
+        self.begin = True
         column = 1
         while column <= len(self.matrix):
+
+            if row > len(self.matrix):
+                return
+
+            # Skip row if there are any static queens
+            if self.matrix[row - 1] < 0 and self.begin:
+                self._place_queen(row + 1)
+
+            # Skip row if there are any static queens
+            if self.matrix[row - 1] < 0 and not self.begin:
+                return
+
             if self.is_valid((row, column)):
                 self.matrix[row - 1] = column
                 if row == len(self.matrix):
-                    self.writer.print_answer(self.matrix, "\n\n{} solution: {} {}".format("-" * 10, self.solution_number, "-" * 10))
+                    self.writer.print_answer(self.matrix,
+                                             "\n\n{} solution: {} {}".format("-" * 10, self.solution_number, "-" * 10))
                     self.solution_number += 1
                 self._place_queen(row + 1)
+                self.begin = False
             column += 1
 
     def is_valid(self, coordinates):
         index = 1
-        while index <= coordinates[0] - 1:
-            if self.matrix[index - 1] == coordinates[1]:
-                return False
-            elif abs(self.matrix[index - 1] - coordinates[1]) == abs(index - coordinates[0]):
-                return False
+        while index <= len(self.matrix):
+            if index <= coordinates[0] - 1 or self.matrix[index - 1] < 0:
+                temp = abs(self.matrix[index - 1])
+                if temp == coordinates[1]:
+                    return False
+                elif abs(temp - coordinates[1]) == abs(index - coordinates[0]):
+                    return False
             index += 1
         return True
 
 
-# Read inputs from a file
+# read inputs from a file
 reader = Reader("./input.txt")
 m = reader.read_input()
 
+# solve matrix
 solver = Solver("./output.txt", m)
-#solver.solve()
-print solver.is_valid((1,1))
-'''
-Some stuff to carry:
-
-print "Coordiantes: {},{}, Is valid: {}.".format(row, column, Solver.is_valid((row, column), given_matrix))
-'''
+solver.solve()
