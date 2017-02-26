@@ -4,8 +4,8 @@ import os.path as path
 class Reader:
     path = ""
 
-    def __init__(self, path):
-        self.path = path
+    def __init__(self, given_path):
+        self.path = given_path
 
     def read_input(self):
         matrix = []
@@ -33,7 +33,7 @@ class Reader:
             index = line.find("*")
             # for each row we place 0 if there is no queen and n (n>0) for a queens position
             # note that now the first position is not '0' but '1'
-            # then n is inverted to indicate an immovable queen
+            # then n is inverted to indicate an immovable (static) queen
             matrix.append(0 if index == -1 else -index - 1)
 
         input_file.close()
@@ -91,13 +91,14 @@ class Solver:
             if row > len(self.matrix):
                 return
 
-            # Skip row if there are any static queens
-            if self.matrix[row - 1] < 0 and self.begin:
-                self._place_queen(row + 1)
-
-            # Skip row if there are any static queens
-            if self.matrix[row - 1] < 0 and not self.begin:
-                return
+            if self.matrix[row - 1] < 0:
+                if self.begin:
+                    # if solving direction is from left to right skip static queen and jump to next (right) column
+                    self._place_queen(row + 1)
+                if not self.begin:
+                    # if solving direction is from right to left (ending recursions) skip static queen and
+                    # jump to next back (left) column
+                    return
 
             if self.is_valid((row, column)):
                 self.matrix[row - 1] = column
@@ -121,6 +122,9 @@ class Solver:
             index += 1
         return True
 
+    def get_solutions_count(self):
+        return self.solution_number - 1
+
 
 # read inputs from a file
 reader = Reader("./input.txt")
@@ -129,3 +133,5 @@ m = reader.read_input()
 # solve matrix
 solver = Solver("./output.txt", m)
 solver.solve()
+
+print solver.get_solutions_count()
